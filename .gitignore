@@ -1,3 +1,17 @@
+
+#####Project specific
+#Data
+data/
+prices/
+
+#Macos files
+.ds_store
+
+#Untitled new notebooks
+**/Untitled*
+
+#####
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
