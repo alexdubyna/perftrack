@@ -7,19 +7,19 @@ def read_data():
     """
     
     import pandas as pd
-    from os import listdir
+    import os
     
     #get list of files to read
 
-    file_names = [f for f in listdir('data/') if f.endswith('.csv')]
+    file_names = [f for f in os.listdir(os.path.join('data')) if f.endswith('.csv')]
     
     #get a single dataframe with list of columns we need
-    all_data = pd.DataFrame(columns = pd.read_csv('data/'+file_names[0], sep=',', header='infer').columns)
+    all_data = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',', header='infer').columns)
     
     #read & combine files to single dataframe
     
     for f in file_names:
-        df = pd.read_csv('data/'+f, sep=',', header='infer')
+        df = pd.read_csv(os.path.join('data', f), sep=',', header='infer')
         df.drop(df.index[0], inplace = True)
         all_data = pd.concat([all_data, df])
     
@@ -41,15 +41,15 @@ def read_prices():
     """
     
     import pandas as pd
-    from os import listdir
+    import os
     
-    file_names = [f for f in listdir('prices/') if f.endswith('.csv')]
+    file_names = [f for f in os.listdir(os.path.join('prices')) if f.endswith('.csv')]
     
     prices_data = pd.DataFrame()
     
     try:
         if len(file_names) == 1:
-            prices_data = pd.read_csv('prices/'+file_names[0], sep=',', header='infer')
+            prices_data = pd.read_csv(os.path.join('prices', file_names[0]), sep=',', header='infer')
             prices_data.drop(prices_data.index[-1], inplace = True)
         else:
             print("Oops! There are multiple files in 'prices/' directory.  Leave only one file and try again...")
