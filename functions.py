@@ -1,3 +1,8 @@
+import pandas as pd
+import os
+import re
+
+
 def read_data():
     
     """
@@ -6,11 +11,8 @@ def read_data():
     Having name of fund, owned units and date attributes is essential for charting functions to work correctly at later steps
     """
     
-    import pandas as pd
-    import os
-    
     #get list of files to read
-
+    
     file_names = [f for f in os.listdir(os.path.join('data')) if f.endswith('.csv')]
     
     #get a single dataframe with list of columns we need
@@ -19,16 +21,19 @@ def read_data():
     #read & combine files to single dataframe
     
     for f in file_names:
-        df = pd.read_csv(os.path.join('data', f), sep=',', header='infer')
+        df = pd.read_csv(os.path.join('data', f), sep=',', header='infer', thousands=',')
         df.drop(df.index[0], inplace = True)
+
         all_data = pd.concat([all_data, df])
     
     #Sort transactions by date and restore broken index
-    
-    all_data.sort_values(by='Unit Price Date', inplace=True)
-    
+
+    all_data["Unit Price Date"] = pd.to_datetime(all_data["Unit Price Date"])
+    all_data.sort_values(by='Unit Price Date', ascending = True, inplace=True)
     all_data.reset_index(drop=True, inplace=True)    
     
+    #all_data_with_cumul = cumul_volumes(all_data)
+
     return all_data
 
 
@@ -40,22 +45,25 @@ def read_prices():
     Having name of fund, owned units and date attributes is essential for charting functions to work correctly at later steps
     """
     
-    import pandas as pd
-    import os
-    
     file_names = [f for f in os.listdir(os.path.join('prices')) if f.endswith('.csv')]
     
     prices_data = pd.DataFrame()
     
     try:
         if len(file_names) == 1:
-            prices_data = pd.read_csv(os.path.join('prices', file_names[0]), sep=',', header='infer')
+            prices_data = pd.read_csv(os.path.join('prices', file_names[0]), sep=',', header='infer', thousands=',')
             prices_data.drop(prices_data.index[-1], inplace = True)
         else:
             print("Oops! There are multiple files in 'prices/' directory.  Leave only one file and try again...")
     except:
         print("Oops!  Try again...")
     
+    prices_data["Unit Price Date"] = pd.to_datetime(prices_data["Unit Price Date"])
+    prices_data.sort_values(by='Unit Price Date', ascending = True, inplace=True)
+    prices_data.reset_index(drop=True, inplace=True)        
+
+    prices_data = clean_prices(prices_data)
+
     return prices_data
 
     
@@ -64,7 +72,6 @@ def clean_names(name):
     Cleans the difference in names on transactions and historical prices datasets
     """
     
-    import re 
     # Search for opening bracket in the name followed by 
     # any characters repeated any number of times 
     
@@ -82,9 +89,14 @@ def clean_names(name):
         return name
 
 
+def clean_numbers(numb):
+    #numb = re.sub("[^\d\.]", "", str(numb))    
+    numb = re.sub("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?|\.[0-9]+)", "", str(numb))
+    #numb = float(numb)
+    return numb
 
 
-def clean_data(prices):
+def clean_prices(prices):
     
     """
     Cleans the difference between find names with historical prices and fund names as shown in transactions
@@ -105,3 +117,25 @@ def clean_data(prices):
     prices["Fund Name"] = prices["Fund Name"].str.replace('World (ex-UK) Equity Tracker Fund Fund','World (ex-UK) Equity Tracker Fund')
                              
     return prices
+
+def cumul_volumes(df):
+    """
+    Function creates cumulative counts of units & dollars per instrument
+    """
+    vlist = (df['Fund'].unique())
+
+    new_df = pd.DataFrame(columns = df.columns)
+    new_df['UnitsCumul'] = 0
+    new_df['ValueCumul'] = 0
+    for e in vlist:
+        cur_df = df[df['Fund'] == e]
+        cur_df['UnitsCumul'] = cur_df['Units'].cumsum()
+        cur_df['ValueCumul'] = cur_df['Value'].cumsum()
+        new_df = pd.concat([new_df, cur_df])
+        new_df.sort_values(by='Unit Price Date', ascending = True, inplace=True)
+        new_df.reset_index(drop=True, inplace=True)
+    return new_df
+
+
+
+
