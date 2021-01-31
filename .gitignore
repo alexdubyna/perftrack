@@ -3,6 +3,7 @@
 #Data
 data/
 prices/
+.idea/
 
 #Macos files
 .ds_store

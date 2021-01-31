@@ -15,14 +15,17 @@ def read_data():
     file_names = [f for f in os.listdir(os.path.join('data')) if f.endswith('.csv')]
     
     #get a single dataframe with list of columns we need
-    all_data = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',', header='infer').columns)
+    all_data = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',',
+                                                  header='infer', dayfirst=True, cache_dates=False).columns)
     
     #read & combine files to single dataframe
     #first we get all fund names with open positions at any point of time
-    all_fund_names = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',', header='infer').columns)
+    all_fund_names = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',',
+                                                        header='infer', dayfirst=True, cache_dates=False) .columns)
 
     for f in file_names:
-        df_fund_names = pd.read_csv(os.path.join('data', f), sep= ',', header='infer', thousands=',')
+        df_fund_names = pd.read_csv(os.path.join('data', f), sep= ',', header='infer', thousands=',',
+                                    dayfirst=True, cache_dates=False)
         df_fund_names.drop(df_fund_names.index[0], inplace = True)
         all_fund_names = pd.concat([all_fund_names,df_fund_names])
     fund_names = set(all_fund_names['Fund'].unique())
@@ -32,7 +35,8 @@ def read_data():
     #second, while reading all files content we will add extra rows with Fund name and 0 investments in a period 
     #to historic data to do nice cumulative sums with pandas later
     for f in file_names:
-        df = pd.read_csv(os.path.join('data', f), sep=',', header='infer', thousands=',')
+        df = pd.read_csv(os.path.join('data', f), sep=',', header='infer', thousands=',',
+                         dayfirst=True, cache_dates=False)
         df.drop(df.index[0], inplace = True)
         cur_period_fund_names = set(df['Fund'].unique())
 
@@ -49,7 +53,8 @@ def read_data():
         all_data = pd.concat([all_data, df])
     
     #Sort transactions by date and restore broken index
-    all_data["Unit Price Date"] = pd.to_datetime(all_data["Unit Price Date"])
+    all_data["Unit Price Date"] = pd.to_datetime(all_data["Unit Price Date"], dayfirst=True)
+    all_data["Unit Price Date"] = all_data['Unit Price Date'].dt.date
     all_data.sort_values(by='Unit Price Date', ascending = True, inplace=True)
     all_data.reset_index(drop=True, inplace=True)    
     
@@ -72,14 +77,16 @@ def read_prices():
     
     try:
         if len(file_names) == 1:
-            prices_data = pd.read_csv(os.path.join('prices', file_names[0]), sep=',', header='infer', thousands=',')
+            prices_data = pd.read_csv(os.path.join('prices', file_names[0]), sep=',', header='infer', thousands=',',
+                                      dayfirst=True, cache_dates=False)
             prices_data.drop(prices_data.index[-1], inplace = True)
         else:
             print("Oops! There are multiple files in 'prices/' directory.  Leave only one file and try again...")
     except:
         print("Oops!  Try again...")
     
-    prices_data["Unit Price Date"] = pd.to_datetime(prices_data["Unit Price Date"])
+    prices_data["Unit Price Date"] = pd.to_datetime(prices_data["Unit Price Date"], dayfirst=True)
+    prices_data["Unit Price Date"] = prices_data['Unit Price Date'].dt.date
     prices_data.sort_values(by='Unit Price Date', ascending = True, inplace=True)
     prices_data.reset_index(drop=True, inplace=True)        
 
@@ -136,6 +143,9 @@ def clean_prices(prices):
     prices["Fund Name"] = prices["Fund Name"].str.replace('Tracker','Tracker Fund')
     prices["Fund Name"] = prices["Fund Name"].str.replace('HSBC Amanah Global Equity Fund Index Fund','HSBC Amanah Global Equity Index Fund')
     prices["Fund Name"] = prices["Fund Name"].str.replace('World (ex-UK) Equity Tracker Fund Fund','World (ex-UK) Equity Tracker Fund')
+    prices["Fund Name"] = prices["Fund Name"].str.replace('Sustainable Global Equity Fund Fund',
+                                                          'Sustainable Global Equity Fund' )
+
                              
     return prices
 
