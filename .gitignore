@@ -5,6 +5,7 @@ data/
 prices/
 maps/
 .idea/
+archive.py
 
 #Macos files
 .ds_store

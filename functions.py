@@ -171,11 +171,12 @@ def get_all_data():
     draft function
     """
 
-
-    alldata = pd.merge(data, prices, how='left', left_on=('Unit Price Date', 'Fund'),
+    #TODO - recreate daily picture on both prices & transactions, now some prices will be brough forward for 1 month where transaction dates do not have a corresponding day price
+    #This change will affect get_all_data, read_data & read_prices fucntions
+    alldata = pd.merge(cumul_volumes(read_data()), read_prices(),
+                       how='left', left_on=('Unit Price Date', 'Fund'),
                        right_on=('Unit Price Date', 'Fund'), copy=True)
-
-
+    alldata['Unit Price'] = alldata.groupby('Fund')['Unit Price'].fillna(method='ffill')
 
     return alldata
 
