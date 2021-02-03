@@ -17,6 +17,9 @@ def read_data():
     #get a single dataframe with list of columns we need
     all_data = pd.DataFrame(columns = pd.read_csv(os.path.join('data', file_names[0]), sep=',',
                                                   header='infer', dayfirst=True, cache_dates=False).columns)
+    #assign default transaction type as switch for now on empty dataframe
+    all_data['TransTp'] = 'Switch'
+    all_data['Invested'] = 0
 
     #read & combine files to single dataframe
     #first we get all fund names with open positions at any point of time
@@ -37,7 +40,21 @@ def read_data():
     for f in file_names:
         df = pd.read_csv(os.path.join('data', f), sep=',', header='infer', thousands=',',
                          dayfirst=True, cache_dates=False)
-        df.drop(df.index[0], inplace = True)
+
+        #while reading monthly file we also want to differentiate between switches & regular transactions
+        # differentiate between switches and regular monthly contributions (new money)
+        contrib = re.findall(r"[-+]?\d*\.\d+|\d+", df.loc[0][0])  # find all floats in first line of file
+
+        try:
+            contrib = float(contrib[0])  # expect exactly one float to be overall monthly pension contrib
+            df['TransTp'] = 'Contribution'
+            df['Invested'] = df['Value'] #preserving proper split between funds from raw data
+        except:
+            contrib = 0
+            df['TransTp'] = 'Switch'
+            df['Invested'] = 0
+
+        df.drop(df.index[0], inplace = True) #drop transaction description value from monthly df
         cur_period_fund_names = set(df['Fund'].unique())
 
         #list of funds that are absent in current month transactions, but which we need to track
@@ -47,7 +64,8 @@ def read_data():
         prc_dt = df['Unit Price Date'][1]
         for fnd in diff_list:
             #print (prc_dt, fnd)
-            new_row = {'Fund':fnd, 'Fund Currency':'GBP', 'Units':0, 'Unit Price Date': prc_dt, 'Value': 0}
+            new_row = {'Fund':fnd, 'Fund Currency':'GBP', 'Units':0, 'Unit Price Date': prc_dt, 'Value': 0,
+                       'TransTp':'Historical', 'Invested':0}
             df = df.append(new_row, ignore_index = True)
 
         all_data = pd.concat([all_data, df])
@@ -150,6 +168,8 @@ def cumul_volumes(df):
     """
     Function creates cumulative counts of units & dollars per instrument
     """
+    #TODO clean up column names for better aggregation and create a dedicated function to calculate performance
+    #TODO consider tracking initial investments and switches separately in units
     vlist = (df['Fund'].unique())
 
     new_df = pd.DataFrame(columns = df.columns)
@@ -159,6 +179,7 @@ def cumul_volumes(df):
         cur_df = df[df['Fund'] == e]
         cur_df['UnitsCumul'] = round(cur_df['Units'].cumsum(),2)
         cur_df['ValueCumul'] = round(cur_df['Value'].cumsum(),2)
+        cur_df['InvCumul'] = round(cur_df['Invested'].cumsum(), 2)
         new_df = pd.concat([new_df, cur_df])
         new_df.sort_values(by='Unit Price Date', ascending = True, inplace=True)
         new_df.reset_index(drop=True, inplace=True)
@@ -177,6 +198,10 @@ def get_all_data():
                        how='left', left_on=('Unit Price Date', 'Fund'),
                        right_on=('Unit Price Date', 'Fund'), copy=True)
     alldata['Unit Price'] = alldata.groupby('Fund')['Unit Price'].fillna(method='ffill')
+    alldata['Unit Price'] = alldata['Unit Price'].fillna(0)
+    alldata['CurVal'] = round(alldata['Unit Price'] * alldata['UnitsCumul'],2)
+
+    alldata.drop(['Fund Currency', 'ValueCumul', ' Fund Code', 'Currency code'], axis=1, inplace=True)
 
     return alldata
 
@@ -186,7 +211,7 @@ def basic_charts(df):
     """"
     Draft version of charting function
     """
-
+    #TODO add performance charting, e.g. --> line_c = dt.plot(x = 'Unit Price Date', y = 'Profit', kind= 'line', figsize=(14,9))
     #primitive line charts for each unique Fund in Prices data
     for fnd in prices['Fund'].unique():
         line_chart = prices[prices['Fund'] == fnd] \
@@ -198,3 +223,13 @@ def basic_charts(df):
 
     return None
 
+def calc_performance(df):
+    """
+    Function aggregates data by month and calculates basic performance of investment metric
+    """
+
+    #TODO consider doing performace calculation inside cumul_volumes() ? unlikely because of aggregations
+    dfperf = df.groupby('Unit Price Date')['Unit Price Date', 'Invested', 'InvCumul', 'CurVal'].sum().copy()
+    dfperf['Profit'] = dfperf['CurVal'] - dfperf['InvCumul']
+    dfperf['Performance'] = round(dfperf['Profit'] / dfperf['InvCumul'],2)
+    return dfperf
