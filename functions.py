@@ -212,9 +212,10 @@ def basic_charts(df):
     Draft version of charting function
     """
     #TODO add performance charting, e.g. --> line_c = dt.plot(x = 'Unit Price Date', y = 'Profit', kind= 'line', figsize=(14,9))
+    #c = dt.plot(x='Unit Price Date',kind='line', figsize=(14,9))
     #primitive line charts for each unique Fund in Prices data
-    for fnd in prices['Fund'].unique():
-        line_chart = prices[prices['Fund'] == fnd] \
+    for fnd in df['Fund'].unique():
+        line_chart = df[df['Fund'] == fnd] \
             .plot(x='Unit Price Date', y='Unit Price', kind='line', figsize=(14, 9), title=fnd)
 
     # mtr = prices[(prices['Unit Price Date'] > datetime.date(2020,12,1)) & \
