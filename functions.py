@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import re
 
+#TODO - Add proper exception handling to all functions
 
 def read_data():
 
@@ -164,7 +165,7 @@ def remap(df, dict):
             df.replace({field: values}, inplace=True)
         return df
 
-def cumul_volumes(df):
+def calc_cumul_volumes(df):
     """
     Function creates cumulative counts of units & dollars per instrument
     """
@@ -186,15 +187,15 @@ def cumul_volumes(df):
     return new_df
 
 
-def get_all_data():
+def read_data_and_prices():
 
     """
-    draft function
+    Draft wrapper function of simplified/unified read of data and prices with majority of necessary processing
     """
 
     #TODO - recreate daily picture on both prices & transactions, now some prices will be brough forward for 1 month where transaction dates do not have a corresponding day price
     #This change will affect get_all_data, read_data & read_prices fucntions
-    alldata = pd.merge(cumul_volumes(read_data()), read_prices(),
+    alldata = pd.merge(calc_cumul_volumes(read_data()), read_prices(),
                        how='left', left_on=('Unit Price Date', 'Fund'),
                        right_on=('Unit Price Date', 'Fund'), copy=True)
     alldata['Unit Price'] = alldata.groupby('Fund')['Unit Price'].fillna(method='ffill')
@@ -205,12 +206,29 @@ def get_all_data():
 
     return alldata
 
+def calc_performance(df):
+    """
+    Function aggregates data by month and calculates basic performance of investment metric
+    """
 
-def basic_charts(df):
+    #TODO consider doing performace calculation inside cumul_volumes() ? unlikely because of aggregations
+    dfperf = df.groupby('Unit Price Date')['Unit Price Date', 'Invested', 'InvCumul', 'CurVal'].sum().copy()
+    dfperf['Profit'] = dfperf['CurVal'] - dfperf['InvCumul']
+    dfperf['Performance'] = round(dfperf['Profit'] / dfperf['InvCumul'],2)
+    dfperf.reset_index(inplace=True)
+    return dfperf
+
+def chart_prices(df):
 
     """"
-    Draft version of charting function
+    Draft version of price charting function
     """
+
+    #TODO - consider dual-axes charts for nice comparison stats
+    #code below allow to plot dual-axis chart to compare dynamic of current value with performance of some fund (if used on 'data' df)
+    #line_chart = df[df['Fund'] == fnd]\
+    #    .plot(secondary_y='Unit Price', x='Unit Price Date', kind='line', figsize=(14, 9), title=fnd)
+
     #TODO add performance charting, e.g. --> line_c = dt.plot(x = 'Unit Price Date', y = 'Profit', kind= 'line', figsize=(14,9))
     #c = dt.plot(x='Unit Price Date',kind='line', figsize=(14,9))
     #primitive line charts for each unique Fund in Prices data
@@ -224,13 +242,29 @@ def basic_charts(df):
 
     return None
 
-def calc_performance(df):
-    """
-    Function aggregates data by month and calculates basic performance of investment metric
-    """
+def chart_performance(df):
 
-    #TODO consider doing performace calculation inside cumul_volumes() ? unlikely because of aggregations
-    dfperf = df.groupby('Unit Price Date')['Unit Price Date', 'Invested', 'InvCumul', 'CurVal'].sum().copy()
-    dfperf['Profit'] = dfperf['CurVal'] - dfperf['InvCumul']
-    dfperf['Performance'] = round(dfperf['Profit'] / dfperf['InvCumul'],2)
-    return dfperf
+    """"
+    Draft function
+    """
+    df.drop('Invested', axis=1, inplace = False).plot(secondary_y='Performance', x='Unit Price Date', kind='line', figsize=(14, 9))
+    df[['Unit Price Date', 'Performance', 'Invested']].plot(secondary_y='Performance', x='Unit Price Date', kind='line', figsize=(14, 9))
+
+    return None
+
+
+def chart_investment(df):
+    # c = dt.plot(x='Unit Price Date',kind='line', figsize=(14,9))
+    # primitive line charts for each unique Fund in Prices data
+    for fnd in df['Fund'].unique():
+        line_chart = df[df['Fund'] == fnd] \
+            .plot(secondary_y='Unit Price', x='Unit Price Date', kind='line', figsize=(14, 9), title=fnd)
+
+        # line_chart = df[df['Fund'] == fnd]\
+        # .plot(x='Unit Price Date', y='CurVal', secondary_y='Unit Price', kind='line', figsize=(14, 9), title=fnd)
+
+    # mtr = prices[(prices['Unit Price Date'] > datetime.date(2020,12,1)) & \
+    #       (prices['Unit Price Date'] < datetime.date(2021,1,1)) & \
+    #        (prices['Fund'] == 'UK Equity Tracker Fund')]
+
+    return None
